@@ -500,7 +500,7 @@ async function doRefresh() {
     if (!wr.ok||!ar.ok) throw new Error('Błąd Trello API — sprawdź klucz i token');
     const [wc,ac]=await Promise.all([wr.json(),ar.json()]);
     state.waitCards=wc;
-    state.weekCards=ac.filter(c=>!c.dueComplete&&inThisWeek(c.due));
+    state.weekCards=ac.filter(c=>inThisWeek(c.due));
 
     // Wszyscy wadia do wystawienia (termin jutro i później)
     const tomorrow=startOfTomorrow();
@@ -639,7 +639,12 @@ function renderDashboard() {
   document.getElementById('label-week-cards').textContent=`Wadia ten tydzień (${wkn})`;
   const bwk=document.getElementById('body-week');
   bwk.innerHTML=wkn===0?'<div class="empty-state" style="color:#6b88a8">Brak wadiów z terminem w tym tygodniu</div>':
-    [...state.weekCards].sort((a,b)=>new Date(a.due)-new Date(b.due)).map(c=>`<div class="card-row"><span class="card-name">${c.name}</span><span class="card-due">${fmtDate(c.due)}</span></div>`).join('');
+    [...state.weekCards].sort((a,b)=>new Date(a.due)-new Date(b.due)).map(c=>{
+      const done=c.dueComplete;
+      const nameStyle=done?'text-decoration:line-through;color:#4a6480;':'';
+      const badge=done?'<span style="color:#22c55e;font-size:11px;flex-shrink:0;">✓ zrealizowane</span>':'';
+      return`<div class="card-row"><span class="card-name" style="${nameStyle}">${c.name}</span>${badge}<span class="card-due">${fmtDate(c.due)}</span></div>`;
+    }).join('');
 
   // Top 5
   const bt5=document.getElementById('body-top5');
