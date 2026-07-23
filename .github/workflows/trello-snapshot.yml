@@ -1,0 +1,42 @@
+name: Trello Weekly Snapshot
+
+on:
+  schedule:
+    # Piątek 15:00 UTC = 17:00 czasu polskiego (CEST, lato)
+    # Zimą (CET = UTC+1) zmień na: 0 16 * * 5
+    - cron: '0 15 * * 5'
+  workflow_dispatch:   # umożliwia ręczne uruchomienie z zakładki Actions
+
+permissions:
+  contents: write      # wymagane do zapisania history.json w repozytorium
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repozytorium
+        uses: actions/checkout@v4
+
+      - name: Ustaw Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Zainstaluj zależności
+        run: pip install requests
+
+      - name: Wykonaj snapshot Trello
+        env:
+          TRELLO_KEY:   ${{ secrets.TRELLO_KEY }}
+          TRELLO_TOKEN: ${{ secrets.TRELLO_TOKEN }}
+          BOARD_ID:     ${{ secrets.BOARD_ID }}
+          WAIT_LIST_ID: ${{ secrets.WAIT_LIST_ID }}
+        run: python snapshot.py
+
+      - name: Zapisz history.json do repozytorium
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add history.json
+          git diff --staged --quiet || git commit -m "Snapshot $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
