@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor Wadialny — Trello</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a1628; font-family: system-ui, -apple-system, sans-serif; color: #e2e8f0; min-height: 100vh; }
+
+  #screen-setup { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+  #screen-boards, #screen-dashboard { display: none; padding: 28px 22px; max-width: 900px; margin: 0 auto; }
+
+  .setup-box { background: #132040; border: 1px solid #263d66; border-radius: 16px; padding: 32px; width: 100%; max-width: 440px; }
+  .setup-title { text-align: center; margin-bottom: 32px; }
+  .setup-title .icon { font-size: 44px; display: block; margin-bottom: 10px; }
+  .setup-title h1 { font-size: 26px; font-weight: 800; color: #e2e8f0; letter-spacing: -0.5px; }
+  .setup-title p { color: #6b88a8; font-size: 14px; margin-top: 6px; }
+
+  label.field-label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #6b88a8; margin-bottom: 8px; margin-top: 18px; }
+  input[type=text], input[type=password], select { width: 100%; background: #1a2d52; border: 1px solid #263d66; border-radius: 8px; padding: 10px 14px; color: #e2e8f0; font-size: 14px; outline: none; font-family: monospace; }
+  input:focus, select:focus { border-color: #3b82f6; }
+  select { font-family: system-ui, sans-serif; cursor: pointer; }
+  .remember-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; cursor: pointer; }
+  .remember-row input { width: auto; accent-color: #3b82f6; }
+  .remember-row span { font-size: 13px; color: #6b88a8; }
+  .setup-link { text-align: center; margin-top: 16px; }
+  .setup-link a { color: #3b82f6; font-size: 12px; text-decoration: none; }
+
+  .btn { display: inline-block; border: none; border-radius: 10px; padding: 12px 20px; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity 0.15s; }
+  .btn-primary { background: #3b82f6; color: #fff; width: 100%; margin-top: 20px; font-size: 15px; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-ghost { background: #132040; border: 1px solid #263d66; color: #6b88a8; padding: 8px 14px; font-size: 13px; border-radius: 8px; }
+  .btn-ghost:hover { color: #e2e8f0; border-color: #3b82f6; }
+  .btn-refresh { background: #3b82f6; color: #fff; padding: 8px 18px; font-size: 13px; font-weight: 700; border-radius: 8px; }
+  .btn-refresh:disabled { opacity: 0.5; cursor: wait; }
+  .btn-snap { background: #1a2d52; border: 1px solid #263d66; color: #e2e8f0; padding: 8px 14px; font-size: 13px; font-weight: 600; border-radius: 8px; }
+  .btn-snap.saved { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.1); }
+  .btn-copy { background: #1a2d52; border: 1px solid #263d66; color: #e2e8f0; padding: 6px 14px; font-size: 12px; font-weight: 600; border-radius: 6px; }
+  .btn-copy.copied { border-color: #22c55e; color: #22c55e; background: rgba(34,197,94,0.1); }
+  .back-btn { background: none; border: none; color: #6b88a8; font-size: 13px; cursor: pointer; margin-bottom: 22px; padding: 0; }
+
+  .page-title { font-size: 22px; font-weight: 800; color: #e2e8f0; margin-bottom: 6px; letter-spacing: -0.3px; }
+  .page-sub { color: #6b88a8; font-size: 14px; margin-bottom: 26px; }
+  .boards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .board-card { background: #132040; border: 1px solid #263d66; border-radius: 14px; padding: 18px 20px; text-align: left; cursor: pointer; transition: all 0.15s; width: 100%; }
+  .board-card:hover { border-color: #3b82f6; background: #1a2d52; }
+  .board-card .b-icon { font-size: 22px; margin-bottom: 10px; }
+  .board-card .b-name { color: #e2e8f0; font-weight: 700; font-size: 15px; line-height: 1.3; }
+  .board-card .b-date { color: #6b88a8; font-size: 11px; margin-top: 6px; }
+
+  .dash-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 14px; flex-wrap: wrap; }
+  .dash-board-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #6b88a8; margin-bottom: 4px; }
+  .dash-board-name { font-size: 22px; font-weight: 800; color: #e2e8f0; letter-spacing: -0.3px; }
+  .dash-last { font-size: 12px; color: #6b88a8; margin-top: 5px; }
+  .dash-actions { display: flex; gap: 10px; flex-shrink: 0; align-items: flex-start; }
+
+  .metrics-grid { display: grid; gap: 14px; margin-bottom: 14px; }
+  .metrics-grid-2 { grid-template-columns: 1fr 1fr; }
+  .metrics-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .metric-card { background: #132040; border: 1px solid #263d66; border-radius: 16px; padding: 22px 22px; position: relative; overflow: hidden; }
+  .metric-card.big { padding: 24px 26px; }
+  .metric-bar { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 16px 16px 0 0; }
+  .metric-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #6b88a8; margin-bottom: 10px; }
+  .metric-number-big { font-size: 76px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; font-family: ui-monospace, 'Courier New', monospace; letter-spacing: -3px; }
+  .metric-number-mid { font-size: 36px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; font-family: ui-monospace, 'Courier New', monospace; }
+  .metric-sub { font-size: 11px; color: #6b88a8; margin-top: 8px; line-height: 1.4; }
+  .metric-status { display: inline-block; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600; margin-top: 12px; }
+  .metric-status-text { font-size: 12px; color: #6b88a8; margin-top: 10px; }
+
+  .list-selector { background: #132040; border: 1px solid #263d66; border-radius: 10px; padding: 13px 18px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .list-selector span { color: #6b88a8; font-size: 13px; }
+
+  .coll-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .collapsible { background: #132040; border: 1px solid #263d66; border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
+  .coll-header { width: 100%; background: none; border: none; padding: 13px 18px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; color: #e2e8f0; font-size: 13px; font-weight: 600; }
+  .coll-header .chevron { color: #6b88a8; font-size: 11px; }
+  .coll-body { border-top: 1px solid #263d66; max-height: 280px; overflow-y: auto; display: none; }
+  .coll-body.open { display: block; }
+  .card-row { padding: 9px 18px; border-bottom: 1px solid rgba(38,61,102,0.4); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .card-row .card-name { color: #e2e8f0; font-size: 13px; line-height: 1.4; flex: 1; }
+  .card-row .card-due { color: #f59e0b; font-size: 11px; flex-shrink: 0; font-family: monospace; font-weight: 700; }
+  .card-row .card-time { font-size: 11px; flex-shrink: 0; font-family: monospace; font-weight: 700; }
+  .card-row .badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px; flex-shrink: 0; }
+  .empty-state { padding: 14px 18px; font-size: 13px; }
+
+  .box { background: #132040; border: 1px solid #263d66; border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
+  .box-header { padding: 16px 20px; border-bottom: 1px solid #263d66; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .box-title { font-size: 14px; font-weight: 600; color: #e2e8f0; }
+  .box-sub { font-size: 12px; color: #6b88a8; margin-top: 2px; }
+  .box-body { padding: 20px; }
+
+  .history-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  .history-table th { color: #6b88a8; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 6px 10px; border-bottom: 1px solid #263d66; }
+  .history-table th:first-child { text-align: left; }
+  .history-table th:not(:first-child) { text-align: center; }
+  .history-table td { padding: 8px 10px; border-bottom: 1px solid rgba(38,61,102,0.3); }
+  .history-table td:first-child { color: #6b88a8; font-size: 12px; }
+  .history-table td:not(:first-child) { text-align: center; font-size: 13px; font-weight: 700; }
+
+  .autosave-row { display: flex; align-items: center; gap: 8px; }
+  .autosave-row input { width: auto; accent-color: #22c55e; }
+  .autosave-row label { font-size: 12px; color: #6b88a8; cursor: pointer; }
+  .autosave-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+
+  .chart-section { display: none; }
+  .chart-wrap { position: relative; }
+  .chart-label { font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #6b88a8; margin-bottom: 12px; }
+  .chart-divider { border-top: 1px solid #263d66; margin: 20px 0; }
+  .chart-placeholder { color: #4a6480; font-size: 13px; text-align: center; padding: 20px; }
+
+  pre.gas-code { background: #060d1a; border-radius: 8px; padding: 16px; color: #a8c4e8; font-size: 11px; overflow-x: auto; line-height: 1.65; max-height: 360px; overflow-y: auto; border: 1px solid #263d66; white-space: pre; }
+
+  .error-box { background: rgba(239,68,68,0.1); border: 1px solid #ef4444; border-radius: 8px; padding: 10px 14px; color: #ef4444; font-size: 13px; }
+  .loading { color: #6b88a8; text-align: center; padding: 48px; font-size: 14px; }
+
+  @media (max-width: 640px) {
+    .metrics-grid-2, .metrics-grid-3, .coll-row { grid-template-columns: 1fr; }
+    .metric-number-big { font-size: 60px; }
+    .metric-number-mid { font-size: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="screen-setup">
+  <div class="setup-box">
+    <div class="setup-title">
+      <span class="icon">📋</span>
+      <h1>Monitor Wadialny</h1>
+      <p>Monitoring poczekalni i obciążenia tygodniowego</p>
+    </div>
+    <label class="field-label" for="inp-key">Klucz API</label>
+    <input type="text" id="inp-key" placeholder="np. abc123def456...">
+    <label class="field-label" for="inp-token">Token</label>
+    <input type="password" id="inp-token" placeholder="twój token dostępu">
+    <label class="remember-row">
+      <input type="checkbox" id="chk-remember">
+      <span>Zapamiętaj dane (localStorage przeglądarki)</span>
+    </label>
+    <div id="setup-error" class="error-box" style="display:none;margin-top:14px;"></div>
+    <button class="btn btn-primary" id="btn-connect">Połącz z Trello →</button>
+    <div class="setup-link"><a href="https://trello.com/power-ups/admin" target="_blank">Klucz API i token → trello.com/power-ups/admin</a></div>
+  </div>
+</div>
+
+<!-- BOARDS -->
+<div id="screen-boards">
+  <button class="back-btn" id="btn-back-boards">← Powrót</button>
+  <div class="page-title">Wybierz tablicę</div>
+  <div class="page-sub">Wskaż tablicę z procesem wadialnym.</div>
+  <div id="boards-grid" class="boards-grid"><div class="loading">Pobieranie tablic...</div></div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="screen-dashboard">
+
+  <div class="dash-header">
+    <div>
+      <div class="dash-board-label">Monitorowana tablica</div>
+      <div class="dash-board-name" id="dash-board-name">—</div>
+      <div class="dash-last" id="dash-last">Brak odczytu</div>
+    </div>
+    <div class="dash-actions">
+      <button class="btn-ghost btn" id="btn-change-board">Zmień tablicę</button>
+      <button class="btn-refresh btn" id="btn-refresh">↻ Odśwież</button>
+    </div>
+  </div>
+
+  <!-- IDs konfiguracji (do GitHub Secrets / GAS) -->
+  <div style="background:#0d1e36;border:1px solid #1e3050;border-radius:8px;padding:10px 16px;margin-bottom:18px;font-size:11px;color:#4a6080;display:flex;gap:24px;flex-wrap:wrap;">
+    <span>🔧 Board ID: <code id="cfg-board-id" style="color:#6b88a8;user-select:all;">—</code></span>
+    <span>Poczekalnia ID: <code id="cfg-list-id" style="color:#6b88a8;user-select:all;">—</code></span>
+    <span style="color:#3a5068;">← kliknij wartość aby zaznaczyć · potrzebne do GitHub Secrets</span>
+  </div>
+
+  <div id="dash-error" class="error-box" style="display:none;margin-bottom:14px;"></div>
+
+  <!-- ROW 1: big metrics -->
+  <div class="metrics-grid metrics-grid-3">
+    <div class="metric-card big">
+      <div class="metric-bar" id="bar-wait"></div>
+      <div class="metric-label">Poczekalnia</div>
+      <div class="metric-number-big" id="num-wait">—</div>
+      <div class="metric-sub" id="sub-wait">kart · lista "—"</div>
+      <div class="metric-status" id="status-wait"></div>
+    </div>
+    <div class="metric-card big">
+      <div class="metric-bar" id="bar-week"></div>
+      <div class="metric-label" id="label-week">Ten tydzień</div>
+      <div class="metric-number-big" id="num-week">—</div>
+      <div class="metric-sub">wadiów z TERMINEM w tym tygodniu</div>
+      <div class="metric-status-text" id="status-week"></div>
+    </div>
+    <div class="metric-card big">
+      <div class="metric-bar" id="bar-future" style="background:#7c3aed;"></div>
+      <div class="metric-label">Wszystkie wadia do wystawienia</div>
+      <div class="metric-number-big" id="num-future" style="color:#7c3aed;">—</div>
+      <div class="metric-sub">kart z TERMINEM jutro i później</div>
+      <div id="members-breakdown" style="margin-top:14px;border-top:1px solid rgba(124,58,237,0.2);padding-top:12px;display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="color:#6b88a8;font-size:11px;line-height:1.3;">Patrycja Rusin<br><span style="font-size:10px;">(wyłącznie jej karty)</span></span>
+          <span id="num-patrycja" style="color:#e2e8f0;font-size:20px;font-weight:900;font-family:monospace;">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:#6b88a8;font-size:11px;line-height:1.3;">Izabela Gołąb<br><span style="font-size:10px;">(sama lub z Patrycją)</span></span>
+          <span id="num-izabela" style="color:#e2e8f0;font-size:20px;font-weight:900;font-family:monospace;">—</span>
+        </div>
+        <div id="members-warn" style="display:none;color:#f59e0b;font-size:10px;margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2: secondary metrics -->
+  <div class="metrics-grid metrics-grid-3">
+    <div class="metric-card">
+      <div class="metric-bar" id="bar-avg"></div>
+      <div class="metric-label">Średni czas w poczekalni</div>
+      <div class="metric-number-mid" id="num-avg">—</div>
+      <div class="metric-sub" id="sub-avg">średnia dla wszystkich kart</div>
+      <div class="metric-status-text" id="status-avg"></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-bar" id="bar-max"></div>
+      <div class="metric-label">Najdłużej czekająca</div>
+      <div class="metric-number-mid" id="num-max">—</div>
+      <div class="metric-sub" id="sub-max">maksimum w poczekalni</div>
+      <div class="metric-status-text" id="status-max" style="font-size:11px;margin-top:8px;line-height:1.4;"></div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-bar" id="bar-new"></div>
+      <div class="metric-label">Nowe w tym tygodniu</div>
+      <div class="metric-number-mid" id="num-new">—</div>
+      <div class="metric-sub">nowych wniosków od Klientów</div>
+      <div class="metric-status-text" id="status-new"></div>
+      <div id="lead-avg" style="display:none;font-size:12px;margin-top:8px;line-height:1.5;"></div>
+    </div>
+  </div>
+
+  <!-- LIST SELECTOR -->
+  <div class="list-selector">
+    <span>Poczekalnia to lista:</span>
+    <select id="sel-list"></select>
+    <span style="font-size:11px;color:#4a6480;">Domyślnie: pierwsza lista na tablicy</span>
+  </div>
+
+  <!-- SIATKA TYGODNIOWA -->
+  <div class="box" style="margin-bottom:14px;">
+    <div class="box-header">
+      <div>
+        <div class="box-title">📅 Rozkład wadiów po dniach</div>
+        <div class="box-sub">Bieżący i następny tydzień · 3 etapy procesu · kliknij komórkę po szczegóły</div>
+      </div>
+    </div>
+    <div style="overflow-x:auto;padding:0 4px;">
+      <div id="week-grid-container" style="padding:4px 12px 14px;min-width:560px;"></div>
+    </div>
+    <div id="grid-detail" style="display:none;border-top:1px solid #263d66;padding:12px 20px 16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div id="grid-detail-title" style="color:#e2e8f0;font-size:13px;font-weight:600;"></div>
+        <button onclick="document.getElementById('grid-detail').style.display='none'" style="background:none;border:none;color:#6b88a8;cursor:pointer;font-size:18px;line-height:1;">×</button>
+      </div>
+      <div id="grid-detail-list"></div>
+    </div>
+  </div>
+
+  <!-- CZAS NA ETAPACH -->
+  <div class="box" style="margin-bottom:14px;">
+    <div class="box-header">
+      <div>
+        <div class="box-title">⏱ Czas na etapach procesu</div>
+        <div class="box-sub">Bieżące obciążenie · historyczna norma · odchylenie</div>
+      </div>
+    </div>
+    <div style="padding:4px 16px 16px;">
+      <div id="stage-metrics-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <!-- COLLAPSIBLES ROW -->
+  <div class="coll-row">
+    <div class="collapsible" style="margin-bottom:0;">
+      <button class="coll-header" data-target="body-wait">
+        <span id="label-wait-cards">Karty w poczekalni (0) · czas oczekiwania</span>
+        <span class="chevron">▼</span>
+      </button>
+      <div class="coll-body" id="body-wait"></div>
+    </div>
+    <div class="collapsible" style="margin-bottom:0;">
+      <button class="coll-header" data-target="body-week">
+        <span id="label-week-cards">Wadia ten tydzień (0)</span>
+        <span class="chevron">▼</span>
+      </button>
+      <div class="coll-body" id="body-week"></div>
+    </div>
+  </div>
+  <div style="margin-bottom:14px;"></div>
+
+  <div class="collapsible">
+    <button class="coll-header" data-target="body-top5">
+      <span id="label-top5">Top 5 najdłużej czekających</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="coll-body" id="body-top5"></div>
+  </div>
+
+  <div class="collapsible">
+    <button class="coll-header" data-target="body-new">
+      <span id="label-new-cards">Nowe wnioski w tym tygodniu (0)</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="coll-body" id="body-new"></div>
+  </div>
+
+  <!-- SNAPSHOT + AUTO-SAVE + HISTORY -->
+  <div class="box">
+    <div class="box-header">
+      <div>
+        <div class="box-title">Pomiary historyczne</div>
+        <div class="box-sub">Każdy zapis to jeden punkt na wykresach poniżej</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+        <button class="btn-snap btn" id="btn-snap">📊 Zapisz teraz</button>
+        <div class="autosave-row">
+          <input type="checkbox" id="chk-autosave">
+          <label for="chk-autosave">Auto-zapis o 17:00 (plik musi być otwarty)</label>
+          <span class="autosave-badge" id="autosave-badge" style="display:none;"></span>
+        </div>
+      </div>
+    </div>
+    <div id="history-wrap" style="display:none;padding:0 4px 4px;">
+      <table class="history-table">
+        <thead><tr>
+          <th>Data i godzina pomiaru</th>
+          <th>Poczekalnia</th>
+          <th>Ten tydzień</th>
+          <th>Śr. czas</th>
+          <th>Nowe</th>
+          <th>Śr. wyprzedzenie</th>
+        </tr></thead>
+        <tbody id="history-body"></tbody>
+      </table>
+    </div>
+    <div id="history-empty" style="padding:14px 20px;color:#4a6480;font-size:13px;">
+      Brak zapisanych pomiarów. Kliknij „Zapisz teraz" po każdym odczycie lub włącz auto-zapis.
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="box chart-section" id="chart-section">
+    <div class="box-header">
+      <div>
+        <div class="box-title">📈 Wykresy historyczne</div>
+        <div class="box-sub">Generowane automatycznie z zapisanych pomiarów</div>
+      </div>
+    </div>
+    <div class="box-body">
+      <div class="chart-label">Poczekalnia i napływ nowych wniosków</div>
+      <div class="chart-wrap"><canvas id="chart-queue" height="110"></canvas></div>
+      <div class="chart-divider"></div>
+      <div class="chart-label">Średni czas oczekiwania w poczekalni (godz.)</div>
+      <div class="chart-wrap"><canvas id="chart-time" height="80"></canvas></div>
+    </div>
+  </div>
+
+
+</div><!-- /dashboard -->
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+const state = {
+  apiKey: '', apiToken: '',
+  board: null, lists: [], waitListId: null,
+  waitCards: [], weekCards: [],
+  allFutureWadia: [], patrycjaCards: [], izabelaCards: [],
+  patrycjaId: null, izabelaId: null,
+  waitCardsWithTimes: [], avgWaitHours: null, maxWaitCard: null,
+  newThisWeek: [],
+  newCardsLeadTimes: [], avgLeadDays: null,
+  twoWeekCards: [], wniosekListIds: [], acceptedListIds: [],
+  stageMetrics: [], weeklyThroughput: [],
+  history: []
+};
+const BASE = 'https://api.trello.com/1';
+let chartQueue = null, chartTime = null;
+let autoSaveTimer = null;
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+function getWeekBounds() {
+  const now = new Date();
+  const d = now.getDay(), diff = d===0?-6:1-d;
+  const mon = new Date(now); mon.setDate(now.getDate()+diff); mon.setHours(0,0,0,0);
+  const sun = new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59,999);
+  return { mon, sun };
+}
+function inThisWeek(s) {
+  if (!s) return false;
+  const { mon, sun } = getWeekBounds();
+  const d = new Date(s);
+  return d >= mon && d <= sun;
+}
+function fmtDate(s) {
+  if (!s) return '—';
+  return new Intl.DateTimeFormat('pl-PL',{day:'2-digit',month:'2-digit'}).format(new Date(s));
+}
+function fmtDateShort(s) {
+  if (!s) return '—';
+  return new Intl.DateTimeFormat('pl-PL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(s));
+}
+function fmtTs(d) {
+  if (!d) return '—';
+  return new Intl.DateTimeFormat('pl-PL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(d instanceof Date?d:new Date(d));
+}
+function fmtDuration(hours) {
+  if (hours===null||hours===undefined||isNaN(hours)) return '—';
+  if (hours<1/60) return '<1min';
+  if (hours<1) return `${Math.round(hours*60)}min`;
+  if (hours<24) { const h=Math.floor(hours),m=Math.round((hours-h)*60); return m>0?`${h}g${m}m`:`${h}g`; }
+  const d=Math.floor(hours/24),r=Math.floor(hours%24);
+  return r>0?`${d}d ${r}g`:`${d}d`;
+}
+function fmtDurationFull(hours) {
+  if (hours===null||hours===undefined||isNaN(hours)) return '—';
+  if (hours<1) return `${Math.round(hours*60)} minut`;
+  if (hours<24) return `${Math.round(hours)} godzin`;
+  const d=Math.floor(hours/24),r=Math.floor(hours%24);
+  const ds=d===1?'1 dzień':`${d} dni`;
+  return r>0?`${ds} i ${r} godz.`:ds;
+}
+function waitStatus(n) {
+  if (n===0) return {color:'#22c55e',label:'✓ Cel osiągnięty — poczekalnia pusta',bg:'rgba(34,197,94,0.08)'};
+  if (n<=3) return {color:'#f59e0b',label:'⚠ Wymaga uwagi',bg:'rgba(245,158,11,0.08)'};
+  return {color:'#ef4444',label:'⛔ Stan alarmowy',bg:'rgba(239,68,68,0.08)'};
+}
+function timeColor(h) {
+  if (h===null) return '#6b88a8';
+  if (h<8) return '#22c55e';
+  if (h<24) return '#f59e0b';
+  if (h<72) return '#f97316';
+  return '#ef4444';
+}
+function weekColor(n) { return n===0?'#6b88a8':n<=4?'#3b82f6':n<=8?'#f59e0b':'#ef4444'; }
+function newColor(n) { return n===0?'#6b88a8':n<=5?'#3b82f6':n<=10?'#f59e0b':'#ef4444'; }
+function startOfTomorrow() { const d=new Date(); d.setDate(d.getDate()+1); d.setHours(0,0,0,0); return d; }
+function leadColor(d) { return d===null?'#6b88a8':d>=14?'#22c55e':d>=7?'#3b82f6':d>=3?'#f59e0b':'#ef4444'; }
+function fmtLeadDays(d) {
+  if (d===null||d===undefined) return '—';
+  if (d<1) return `${Math.round(d*24)} godz.`;
+  const days=Math.floor(d), h=Math.round((d-days)*24);
+  return h>0?`${days}d ${h}h`:`${days} dni`;
+}
+function trelloUrl(path,extra={}) {
+  return `${BASE}${path}?${new URLSearchParams({key:state.apiKey,token:state.apiToken,...extra})}`;
+}
+function showError(id,msg) { const el=document.getElementById(id); el.textContent=msg; el.style.display=msg?'block':'none'; }
+function setScreen(n) {
+  document.getElementById('screen-setup').style.display=n==='setup'?'flex':'none';
+  document.getElementById('screen-boards').style.display=n==='boards'?'block':'none';
+  document.getElementById('screen-dashboard').style.display=n==='dashboard'?'block':'none';
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+(function init() {
+  const c=JSON.parse(localStorage.getItem('trello_monitor_creds')||'null');
+  if (c) { document.getElementById('inp-key').value=c.k||''; document.getElementById('inp-token').value=c.t||''; document.getElementById('chk-remember').checked=true; }
+  state.history=JSON.parse(localStorage.getItem('trello_monitor_history')||'[]');
+  const as=localStorage.getItem('trello_monitor_autosave')==='1';
+  document.getElementById('chk-autosave').checked=as;
+  if (as) startAutoSaveTimer();
+  renderHistory();
+  renderCharts();
+})();
+
+// ── SETUP ──────────────────────────────────────────────────────────────────
+document.getElementById('btn-connect').addEventListener('click', async () => {
+  const key=document.getElementById('inp-key').value.trim();
+  const tok=document.getElementById('inp-token').value.trim();
+  if (!key||!tok) return;
+  state.apiKey=key; state.apiToken=tok;
+  const btn=document.getElementById('btn-connect');
+  btn.disabled=true; btn.textContent='Łączenie...';
+  showError('setup-error','');
+  try {
+    if (document.getElementById('chk-remember').checked)
+      localStorage.setItem('trello_monitor_creds',JSON.stringify({k:key,t:tok}));
+    else localStorage.removeItem('trello_monitor_creds');
+    const r=await fetch(trelloUrl('/members/me/boards',{filter:'open',fields:'name,dateLastActivity'}));
+    if (!r.ok) throw new Error('Nieprawidłowy klucz API lub token.');
+    const boards = await r.json();
+    renderBoards(boards);
+    setScreen('boards');
+  } catch(e) { showError('setup-error',e.message); }
+  btn.disabled=false; btn.textContent='Połącz z Trello →';
+});
+
+// ── BOARDS ─────────────────────────────────────────────────────────────────
+function renderBoards(boards) {
+  const g=document.getElementById('boards-grid'); g.innerHTML='';
+  boards.forEach(b => {
+    const btn=document.createElement('button'); btn.className='board-card';
+    btn.innerHTML=`<div class="b-icon">📋</div><div class="b-name">${b.name}</div>${b.dateLastActivity?`<div class="b-date">Aktywna: ${fmtDate(b.dateLastActivity)}</div>`:''}`;
+    btn.addEventListener('click',()=>pickBoard(b)); g.appendChild(btn);
+  });
+}
+document.getElementById('btn-back-boards').addEventListener('click',()=>setScreen('setup'));
+
+async function pickBoard(b) {
+  state.board=b; document.getElementById('dash-board-name').textContent=b.name;
+  setScreen('dashboard'); showError('dash-error','');
+  try {
+    const r=await fetch(trelloUrl(`/boards/${b.id}/lists`,{filter:'open'}));
+    if (!r.ok) throw new Error('Błąd pobierania list');
+    const lists=await r.json(); state.lists=lists; state.waitListId=lists[0]?.id||null;
+    renderListSelect(lists); await doRefresh(); loadServerHistory();
+  } catch(e) { showError('dash-error','⚠ '+e.message); }
+}
+function renderListSelect(lists) {
+  const sel=document.getElementById('sel-list'); sel.innerHTML='';
+  lists.forEach(l => { const o=document.createElement('option'); o.value=l.id; o.textContent=l.name; if(l.id===state.waitListId) o.selected=true; sel.appendChild(o); });
+}
+document.getElementById('sel-list').addEventListener('change',async e=>{ state.waitListId=e.target.value; await doRefresh(); });
+document.getElementById('btn-change-board').addEventListener('click',()=>setScreen('boards'));
+document.getElementById('btn-refresh').addEventListener('click',doRefresh);
+
+// ── REFRESH ────────────────────────────────────────────────────────────────
+async function doRefresh() {
+  if (!state.board||!state.waitListId) return;
+  const btn=document.getElementById('btn-refresh');
+  btn.disabled=true; btn.textContent='↻ Ładowanie...';
+  showError('dash-error','');
+  try {
+    const [wr,ar,acr,mr,waitCrR,delR,mvR]=await Promise.all([
+      fetch(trelloUrl(`/lists/${state.waitListId}/cards`,{fields:'name,due,dateLastActivity'})),
+      fetch(trelloUrl(`/boards/${state.board.id}/cards`,{filter:'open',fields:'name,due,idList,dueComplete,idMembers'})),
+      fetch(trelloUrl(`/boards/${state.board.id}/actions`,{filter:'createCard,updateCard:idList,deleteCard',limit:'1000',fields:'data,date,type'})),
+      fetch(trelloUrl(`/boards/${state.board.id}/members`,{fields:'fullName,id'})),
+      fetch(trelloUrl(`/boards/${state.board.id}/actions`,{filter:'createCard',limit:'1000',fields:'data,date,type'})),
+      fetch(trelloUrl(`/boards/${state.board.id}/actions`,{filter:'deleteCard',limit:'1000',fields:'data,date,type'})),
+      fetch(trelloUrl(`/boards/${state.board.id}/actions`,{filter:'updateCard:idList',limit:'1000',fields:'data,date,type'}))
+    ]);
+    if (!wr.ok||!ar.ok) throw new Error('Błąd Trello API — sprawdź klucz i token');
+    const [wc,ac]=await Promise.all([wr.json(),ar.json()]);
+
+    // Dedykowana historia poczekalni: trzy osobne zapytania z własnym limitem 1000
+    const waitCrActions = waitCrR.ok ? await waitCrR.json() : [];
+    const delActions    = delR.ok    ? await delR.json()    : [];
+    const mvActions     = mvR.ok     ? await mvR.json()     : [];
+    let actions=acr.ok?await acr.json():[];
+    if (!Array.isArray(actions)) actions=[];
+    // Scalamy i deduplikujemy — każdy typ ma własne 1000 zdarzeń
+    const seenIds=new Set();
+    const poczekalniaActions=[
+      ...(Array.isArray(waitCrActions)?waitCrActions:[]),
+      ...(Array.isArray(delActions)?delActions:[]),
+      ...(Array.isArray(mvActions)?mvActions:[]),
+      ...actions
+    ].filter(a=>{
+      if (!a.id) return true;
+      if (seenIds.has(a.id)) return false;
+      seenIds.add(a.id); return true;
+    }).sort((a,b)=>new Date(b.date)-new Date(a.date)); // newest first
+    state.waitCards=wc;
+    state.weekCards=ac.filter(c=>inThisWeek(c.due));
+
+    // Kategorie list dla siatki tygodniowej
+    const lName=l=>l.name.toLowerCase();
+    state.wniosekListIds=state.lists.filter(l=>{
+      const n=lName(l);
+      return (n.includes('wnios')&&!n.includes('zaakceptowane')&&!n.includes('podpisany'))||n.includes('po analizie');
+    }).map(l=>l.id);
+    state.acceptedListIds=state.lists.filter(l=>lName(l).includes('czeka')||lName(l).includes('zaakceptowane')||lName(l).includes('zrealizowane')).map(l=>l.id);
+
+    // Karty z terminem w bieżącym i następnym tygodniu (14 dni od poniedziałku)
+    const twd=getTwoWeekDays();
+    const twStart=twd[0], twEnd=new Date(twd[13]); twEnd.setHours(23,59,59,999);
+    state.twoWeekCards=ac.filter(c=>c.due&&new Date(c.due)>=twStart&&new Date(c.due)<=twEnd);
+
+    // Wszyscy wadia do wystawienia (termin jutro i później)
+    const tomorrow=startOfTomorrow();
+    state.allFutureWadia=ac.filter(c=>!c.dueComplete&&c.due&&new Date(c.due)>=tomorrow);
+
+    // Członkowie tablicy — znajdź Patrycję i Izabelę
+    if (mr.ok) {
+      const members=await mr.json();
+      state.patrycjaId=members.find(m=>m.fullName.toLowerCase().includes('patrycja'))?.id||null;
+      state.izabelaId=members.find(m=>m.fullName.toLowerCase().includes('izabela')||m.fullName.toLowerCase().includes('go\u0142\u0105b'))?.id||null;
+    }
+    state.patrycjaCards=state.patrycjaId
+      ?state.allFutureWadia.filter(c=>c.idMembers?.length===1&&c.idMembers[0]===state.patrycjaId)
+      :[];
+    state.izabelaCards=state.izabelaId
+      ?state.allFutureWadia.filter(c=>c.idMembers?.includes(state.izabelaId))
+      :[];
+
+    const waitIds=new Set(state.waitCards.map(c=>c.id));
+    const arrMap={};
+    for (const a of actions) {
+      const cid=a.data?.card?.id;
+      if (!cid||!waitIds.has(cid)||arrMap[cid]) continue;
+      if (a.type==='createCard'&&a.data.list?.id===state.waitListId) arrMap[cid]=new Date(a.date);
+      else if (a.type==='updateCard'&&a.data.listAfter?.id===state.waitListId) arrMap[cid]=new Date(a.date);
+    }
+    const now=new Date();
+    state.waitCardsWithTimes=state.waitCards.map(c=>({...c,arrival:arrMap[c.id]||null,hours:arrMap[c.id]?(now-arrMap[c.id])/3600000:null}));
+    const wt=state.waitCardsWithTimes.filter(c=>c.hours!==null);
+    state.avgWaitHours=wt.length>0?wt.reduce((s,c)=>s+c.hours,0)/wt.length:null;
+    state.top5=[...state.waitCardsWithTimes].filter(c=>c.hours!==null).sort((a,b)=>b.hours-a.hours).slice(0,5);
+    state.maxWaitCard=state.top5[0]||null;
+    const {mon,sun}=getWeekBounds();
+    state.newThisWeek=actions.filter(a=>{
+      if (a.type!=='createCard') return false;
+      if (a.data?.list?.id!==state.waitListId) return false;
+      const d=new Date(a.date); return d>=mon&&d<=sun;
+    });
+
+    // Wyprzedzenie: data przetargu minus data wpłynięcia wniosku
+    const cardDueMap={};
+    ac.forEach(c=>{ if(c.due) cardDueMap[c.id]=c.due; });
+    state.newCardsLeadTimes=state.newThisWeek.map(a=>{
+      const cid=a.data?.card?.id;
+      const due=cardDueMap[cid]||null;
+      const leadDays=due?(new Date(due)-new Date(a.date))/86400000:null;
+      return {name:a.data?.card?.name||'—',createdAt:a.date,due,leadDays:leadDays>0?leadDays:null};
+    });
+    const validLeads=state.newCardsLeadTimes.filter(c=>c.leadDays!==null);
+    state.avgLeadDays=validLeads.length>0?validLeads.reduce((s,c)=>s+c.leadDays,0)/validLeads.length:null;
+
+    // Czas na etapach — wszystkie listy oprócz "Do usunięcia"
+    const skipList=new Set(state.lists.filter(l=>{
+      const n=l.name.toLowerCase();
+      return n.includes('do usuni')||n==='archiwum'||n==='lista'||n.trim()==='lista';
+    }).map(l=>l.id));
+    state.stageMetrics=state.lists
+      .filter(l=>!skipList.has(l.id))
+      .map(l=>l.id===state.waitListId
+        ? calcStageMetrics(poczekalniaActions,ac,l.id,l.name)
+        : calcStageMetrics(actions,ac,l.id,l.name));
+
+    // Przepustowość poczekalni — historia tygodniowa
+    state.weeklyThroughput=computeWeeklyThroughput(poczekalniaActions,state.waitListId);
+
+    renderDashboard();
+    renderWeekGrid();
+    renderStageMetrics();
+    document.getElementById('dash-last').textContent='Odczyt: '+fmtTs(new Date());
+  } catch(e) { showError('dash-error','⚠ '+e.message); }
+  btn.disabled=false; btn.textContent='↻ Odśwież';
+}
+
+// ── RENDER DASHBOARD ───────────────────────────────────────────────────────
+function renderDashboard() {
+  const wn=state.waitCards.length,wkn=state.weekCards.length,nw=state.newThisWeek.length;
+  const avg=state.avgWaitHours,maxH=state.maxWaitCard?.hours??null;
+  const ws=waitStatus(wn);
+  const waitListName=state.lists.find(l=>l.id===state.waitListId)?.name||'—';
+  const {mon,sun}=getWeekBounds();
+  const weekLabel=`${fmtDate(mon.toISOString())}–${fmtDate(sun.toISOString())}`;
+
+  // Metryki
+  document.getElementById('cfg-board-id').textContent = state.board?.id || '—';
+  document.getElementById('cfg-list-id').textContent  = state.waitListId || '—';
+  el('num-wait',wn,ws.color); el('sub-wait',`kart · lista "${waitListName}"`);
+  const sw=document.getElementById('status-wait'); sw.textContent=ws.label; sw.style.color=ws.color; sw.style.background=ws.bg;
+
+  document.getElementById('label-week').textContent=`Ten tydzień · ${weekLabel}`;
+  document.getElementById('bar-week').style.background=weekColor(wkn);
+  el('num-week',wkn,weekColor(wkn));
+  document.getElementById('status-week').textContent=wkn===0?'Brak wadiów w tym tygodniu':wkn>7?'Wysokie obciążenie':'Normalne obciążenie';
+
+  // Wszystkie wadia do wystawienia
+  const fn=state.allFutureWadia.length;
+  el('num-future',fn,'#7c3aed');
+  const bd=document.getElementById('members-breakdown');
+  const warns=[];
+  if (fn>0||state.patrycjaId||state.izabelaId) {
+    bd.style.display='block';
+    const pc=state.patrycjaCards.length, ic=state.izabelaCards.length;
+    el('num-patrycja',state.patrycjaId?pc:'?','#a78bfa');
+    el('num-izabela',state.izabelaId?ic:'?','#a78bfa');
+    if (!state.patrycjaId) warns.push('Nie znaleziono Patrycji Rusin na tablicy');
+    if (!state.izabelaId) warns.push('Nie znaleziono Izabeli Gołąb na tablicy');
+    const warnEl=document.getElementById('members-warn');
+    if (warns.length>0) { warnEl.textContent='⚠ '+warns.join(' · '); warnEl.style.display='block'; }
+    else warnEl.style.display='none';
+  } else { bd.style.display='none'; }
+
+  const ac=timeColor(avg);
+  document.getElementById('bar-avg').style.background=ac;
+  el('num-avg',fmtDuration(avg),ac);
+  document.getElementById('sub-avg').textContent=avg!==null?`tj. ${fmtDurationFull(avg)}`:'brak historii akcji';
+  document.getElementById('status-avg').textContent=avg===null?'':avg<8?'✓ Sprawne wypychanie wniosków':avg<24?'⚠ Zwłoka w granicach tolerancji':avg<72?'⛔ Wyraźna inercja procesowa':'⛔ Krytyczna zwłoka';
+  document.getElementById('status-avg').style.color=ac;
+
+  const mc=timeColor(maxH);
+  document.getElementById('bar-max').style.background=mc;
+  el('num-max',fmtDuration(maxH),mc);
+  document.getElementById('sub-max').textContent=maxH!==null?'najstarszy wniosek w poczekalni':'brak kart z historią';
+  document.getElementById('status-max').textContent=state.maxWaitCard?`„${state.maxWaitCard.name}"`:'';
+  document.getElementById('status-max').style.color=mc;
+
+  const nc=newColor(nw);
+  const ld=state.avgLeadDays, lc=leadColor(ld), vl=state.newCardsLeadTimes.filter(c=>c.leadDays!==null).length;
+  document.getElementById('bar-new').style.background=nc;
+  el('num-new',nw,nc);
+  document.getElementById('status-new').textContent=nw===0?'Brak nowych — przestrzeń na zaległości':nw<=5?'Normalny napływ':nw<=10?'Intensywny napływ':'⚠ Bardzo intensywny napływ';
+  document.getElementById('status-new').style.color=nc;
+
+  // Śr. wyprzedzenie
+  const leadEl=document.getElementById('lead-avg');
+  if (ld!==null) {
+    leadEl.innerHTML=`Śr. wyprzedzenie: <span style="color:${lc};font-weight:800;">${fmtLeadDays(ld)}</span><span style="color:#6b88a8;font-size:10px;"> (${vl}/${nw} kart z TERMINEM)</span>`;
+    leadEl.style.display='block';
+  } else {
+    leadEl.style.display=nw>0?'block':'none';
+    leadEl.innerHTML=nw>0?'<span style="color:#4a6480;font-size:11px;">Śr. wyprzedzenie: brak TERMINU na kartach</span>':'';
+  }
+
+  // Karty w poczekalni
+  document.getElementById('label-wait-cards').textContent=`Karty w poczekalni (${wn}) · czas oczekiwania`;
+  const bw=document.getElementById('body-wait');
+  bw.innerHTML=wn===0?'<div class="empty-state" style="color:#22c55e">✓ Poczekalnia pusta</div>':
+    [...state.waitCardsWithTimes].sort((a,b)=>(b.hours||0)-(a.hours||0)).map(c=>{
+      const tc=timeColor(c.hours);
+      return `<div class="card-row"><span class="card-name">${c.name}</span>${c.due?`<span class="card-due">${fmtDate(c.due)}</span>`:''}<span class="card-time" style="color:${tc}">${c.hours!==null?fmtDuration(c.hours):'?'}</span></div>`;
+    }).join('');
+
+  // Wadia tydzień
+  document.getElementById('label-week-cards').textContent=`Wadia ten tydzień (${wkn})`;
+  const bwk=document.getElementById('body-week');
+  bwk.innerHTML=wkn===0?'<div class="empty-state" style="color:#6b88a8">Brak wadiów z terminem w tym tygodniu</div>':
+    [...state.weekCards].sort((a,b)=>new Date(a.due)-new Date(b.due)).map(c=>{
+      const done=c.dueComplete;
+      const nameStyle=done?'text-decoration:line-through;color:#4a6480;':'';
+      const badge=done?'<span style="color:#22c55e;font-size:11px;flex-shrink:0;">✓ zrealizowane</span>':'';
+      return`<div class="card-row"><span class="card-name" style="${nameStyle}">${c.name}</span>${badge}<span class="card-due">${fmtDate(c.due)}</span></div>`;
+    }).join('');
+
+  // Top 5
+  const bt5=document.getElementById('body-top5');
+  bt5.innerHTML=state.top5.length===0?'<div class="empty-state" style="color:#6b88a8">Brak danych o czasie oczekiwania</div>':
+    state.top5.map((c,i)=>{const tc=timeColor(c.hours);return `<div class="card-row"><span class="badge" style="background:${tc}22;color:${tc}">#${i+1}</span><span class="card-name">${c.name}</span>${c.due?`<span class="card-due">${fmtDate(c.due)}</span>`:''}<span class="card-time" style="color:${tc};font-size:13px;font-weight:800;">${fmtDurationFull(c.hours)}</span></div>`}).join('');
+
+  // Nowe w tygodniu z wyprzedzeniem
+  document.getElementById('label-new-cards').textContent=`Nowe wnioski w tym tygodniu (${nw})`;
+  const bnw=document.getElementById('body-new');
+  if (nw===0) {
+    bnw.innerHTML='<div class="empty-state" style="color:#6b88a8">Brak nowych wniosków w tym tygodniu</div>';
+  } else {
+    const summaryBar=ld!==null
+      ?`<div style="padding:10px 18px;background:#1a2d52;border-bottom:1px solid #263d66;font-size:12px;display:flex;gap:16px;align-items:center;">
+          <span style="color:#6b88a8;">Średnie wyprzedzenie:</span>
+          <span style="color:${lc};font-weight:800;font-size:15px;">${fmtLeadDays(ld)}</span>
+          <span style="color:#4a6480;font-size:11px;">${vl} z ${nw} kart ma TERMIN</span>
+        </div>`:'';
+    const rows=[...state.newCardsLeadTimes].sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt)).map(c=>{
+      const lclr=leadColor(c.leadDays);
+      return `<div class="card-row">
+        <span class="card-name">${c.name}</span>
+        ${c.due?`<span class="card-due">${fmtDate(c.due)}</span>`:'<span style="color:#4a6480;font-size:11px;">brak TERMINU</span>'}
+        <span class="card-time" style="color:${lclr}">${c.leadDays!==null?fmtLeadDays(c.leadDays):'—'}</span>
+      </div>`;
+    }).join('');
+    bnw.innerHTML=summaryBar+rows;
+  }
+
+
+
+
+}
+function el(id,val,color) { const e=document.getElementById(id); e.textContent=val; if(color) e.style.color=color; }
+
+// ── COLLAPSIBLES ──────────────────────────────────────────────────────────
+document.querySelectorAll('.coll-header').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const body=document.getElementById(btn.getAttribute('data-target'));
+    btn.querySelector('.chevron').textContent=body.classList.toggle('open')?'▲':'▼';
+  });
+});
+
+// ── SNAPSHOT ──────────────────────────────────────────────────────────────
+document.getElementById('btn-snap').addEventListener('click',()=>saveSnapshot(false));
+
+function saveSnapshot(auto=false) {
+  if (!state.board) return;
+  const snap={ts:new Date().toISOString(),waiting:state.waitCards.length,thisWeek:state.weekCards.length,avgHours:state.avgWaitHours,newThisWeek:state.newThisWeek.length,avgLeadDays:state.avgLeadDays};
+  state.history=[snap,...state.history].slice(0,60);
+  localStorage.setItem('trello_monitor_history',JSON.stringify(state.history));
+  renderHistory(); renderCharts();
+  if (!auto) {
+    const btn=document.getElementById('btn-snap');
+    btn.textContent='✓ Zapisano'; btn.classList.add('saved');
+    setTimeout(()=>{ btn.textContent='📊 Zapisz teraz'; btn.classList.remove('saved'); },3000);
+  } else {
+    const badge=document.getElementById('autosave-badge');
+    badge.textContent='✓ Auto-zapis '+fmtTs(new Date()); badge.style.background='rgba(34,197,94,0.12)'; badge.style.color='#22c55e'; badge.style.display='inline';
+  }
+}
+
+function renderHistory() {
+  const wrap=document.getElementById('history-wrap');
+  const empty=document.getElementById('history-empty');
+  const body=document.getElementById('history-body');
+  if (!state.history.length) { wrap.style.display='none'; empty.style.display='block'; return; }
+  wrap.style.display='block'; empty.style.display='none';
+  body.innerHTML=state.history.map(h=>{
+    const ws=waitStatus(h.waiting),wc=weekColor(h.thisWeek),tc=timeColor(h.avgHours??null),nc=newColor(h.newThisWeek??0),lc=leadColor(h.avgLeadDays??null);
+    return `<tr><td>${fmtTs(h.ts)}</td><td style="color:${ws.color}">${h.waiting}</td><td style="color:${wc}">${h.thisWeek}</td><td style="color:${tc}">${fmtDuration(h.avgHours??null)}</td><td style="color:${nc}">${h.newThisWeek??'—'}</td><td style="color:${lc}">${fmtLeadDays(h.avgLeadDays??null)}</td></tr>`;
+  }).join('');
+}
+
+// ── CHARTS ────────────────────────────────────────────────────────────────
+Chart.defaults.color='#6b88a8';
+Chart.defaults.font.family='system-ui, sans-serif';
+
+function renderCharts() {
+  const section=document.getElementById('chart-section');
+  if (state.history.length<2) { section.style.display='none'; return; }
+  section.style.display='block';
+
+  const rev=[...state.history].reverse();
+  const labels=rev.map(h=>fmtDateShort(h.ts));
+  const waitData=rev.map(h=>h.waiting);
+  const newData=rev.map(h=>h.newThisWeek??null);
+  const avgData=rev.map(h=>h.avgHours??null);
+  const waitColors=waitData.map(n=>waitStatus(n).color);
+
+  const gridColor='rgba(38,61,102,0.5)';
+  const tickFont={size:10};
+
+  // Chart 1: Poczekalnia (line) + Nowe wnioski (bars)
+  const ctx1=document.getElementById('chart-queue').getContext('2d');
+  if (chartQueue) chartQueue.destroy();
+  chartQueue=new Chart(ctx1,{
+    data:{
+      labels,
+      datasets:[
+        {
+          type:'line', label:'Poczekalnia (lewa oś)',
+          data:waitData,
+          borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.08)',
+          borderWidth:2.5, pointBackgroundColor:waitColors, pointRadius:5, pointHoverRadius:7,
+          tension:0.3, yAxisID:'yL', order:1
+        },
+        {
+          type:'bar', label:'Nowe wnioski (prawa oś)',
+          data:newData,
+          backgroundColor:'rgba(59,130,246,0.35)', borderColor:'#3b82f6', borderWidth:1,
+          borderRadius:4, yAxisID:'yR', order:2
+        }
+      ]
+    },
+    options:{
+      responsive:true, interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#94a3b8',font:{size:11},boxWidth:12,padding:16}},
+        tooltip:{
+          backgroundColor:'#132040', borderColor:'#263d66', borderWidth:1,
+          callbacks:{ label:ctx=>` ${ctx.dataset.label.split('(')[0].trim()}: ${ctx.raw??'brak'}` }
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#6b88a8',font:tickFont,maxRotation:35},grid:{color:gridColor}},
+        yL:{position:'left',ticks:{color:'#ef4444',font:tickFont,stepSize:1},grid:{color:gridColor},title:{display:true,text:'Poczekalnia',color:'#ef4444',font:{size:10}},min:0},
+        yR:{position:'right',ticks:{color:'#3b82f6',font:tickFont,stepSize:1},grid:{drawOnChartArea:false},title:{display:true,text:'Nowe wnioski',color:'#3b82f6',font:{size:10}},min:0}
+      }
+    }
+  });
+
+  // Chart 2: Średni czas oczekiwania
+  const ctx2=document.getElementById('chart-time').getContext('2d');
+  if (chartTime) chartTime.destroy();
+
+  // Reference lines at 8h i 24h
+  const refPlugin={id:'refLines',afterDraw(chart){
+    const {ctx,chartArea:{left,right},scales:{y}}=chart;
+    [[8,'rgba(245,158,11,0.4)'],[24,'rgba(239,68,68,0.4)']].forEach(([val,color])=>{
+      if (val<y.min||val>y.max) return;
+      const yPx=y.getPixelForValue(val);
+      ctx.save(); ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=1; ctx.setLineDash([4,4]);
+      ctx.moveTo(left,yPx); ctx.lineTo(right,yPx); ctx.stroke();
+      ctx.fillStyle=color; ctx.font='10px system-ui'; ctx.fillText(val===8?'8g — próg ostrzeżenia':'24g — próg alarmowy',left+4,yPx-4);
+      ctx.restore();
+    });
+  }};
+
+  chartTime=new Chart(ctx2,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'Średni czas (godz.)',
+        data:avgData,
+        borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.08)',
+        borderWidth:2.5, pointBackgroundColor:avgData.map(h=>timeColor(h)), pointRadius:5,
+        tension:0.3, spanGaps:true
+      }]
+    },
+    options:{
+      responsive:true, interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#94a3b8',font:{size:11},boxWidth:12}},
+        tooltip:{
+          backgroundColor:'#132040', borderColor:'#263d66', borderWidth:1,
+          callbacks:{ label:ctx=>` ${fmtDurationFull(ctx.raw)}` }
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#6b88a8',font:tickFont,maxRotation:35},grid:{color:gridColor}},
+        y:{ticks:{color:'#f59e0b',font:tickFont,callback:v=>fmtDuration(v)},grid:{color:gridColor},min:0}
+      }
+    },
+    plugins:[refPlugin]
+  });
+}
+
+// ── AUTO-SAVE ─────────────────────────────────────────────────────────────
+document.getElementById('chk-autosave').addEventListener('change', e=>{
+  localStorage.setItem('trello_monitor_autosave',e.target.checked?'1':'0');
+  if (e.target.checked) startAutoSaveTimer(); else stopAutoSaveTimer();
+});
+
+let lastAutoSaveDate=null;
+function startAutoSaveTimer() {
+  stopAutoSaveTimer();
+  const badge=document.getElementById('autosave-badge');
+  badge.style.display='inline'; badge.style.background='rgba(34,197,94,0.1)'; badge.style.color='#22c55e';
+  badge.textContent='Aktywny — zapis o 17:00';
+  autoSaveTimer=setInterval(async()=>{
+    const now=new Date();
+    const today=now.toDateString();
+    if (now.getHours()===17&&now.getMinutes()<5&&lastAutoSaveDate!==today) {
+      lastAutoSaveDate=today;
+      await doRefresh();
+      saveSnapshot(true);
+    }
+  },30000);
+}
+function stopAutoSaveTimer() {
+  if (autoSaveTimer) { clearInterval(autoSaveTimer); autoSaveTimer=null; }
+  const badge=document.getElementById('autosave-badge');
+  badge.style.display='none';
+}
+
+// ── CZAS NA ETAPACH ───────────────────────────────────────────────────────
+
+function calcStageMetrics(actions, allCards, listId, listName) {
+  const now = new Date();
+  const isFinal   = listName.toLowerCase().includes('zrealizowane');
+  const isWaiting = listId === state.waitListId; // historia poczekalni niedostępna
+
+  // Bieżące karty na tej liście
+  const current = allCards.filter(c => c.idList === listId);
+  const currentIds = new Set(current.map(c => c.id));
+
+  // Kiedy bieżące karty trafiły na tę listę
+  const arrMap = {};
+  for (const a of actions) {
+    const cid = a.data?.card?.id;
+    if (!cid || !currentIds.has(cid) || arrMap[cid]) continue;
+    if (a.type === 'createCard' && a.data.list?.id === listId) arrMap[cid] = new Date(a.date);
+    else if (a.type === 'updateCard' && a.data.listAfter?.id === listId) arrMap[cid] = new Date(a.date);
+  }
+  const withTimes = current.map(c => ({
+    ...c,
+    hours: arrMap[c.id] ? (now - arrMap[c.id]) / 3600000 : null
+  })).sort((a,b) => (b.hours||0) - (a.hours||0));
+  const validCurr = withTimes.filter(c => c.hours !== null);
+  const currentAvg = validCurr.length > 0
+    ? validCurr.reduce((s,c) => s + c.hours, 0) / validCurr.length : null;
+
+  // Historyczne czasy — karty które już przeszły przez tę listę
+  let historicalAvg = null, historicalCount = 0;
+  if (!isFinal && !isWaiting) {
+    const chron = [...actions].reverse(); // od najstarszych
+    const enteredAt = {};
+    const durations = [];
+    for (const a of chron) {
+      const cid = a.data?.card?.id;
+      if (!cid) continue;
+      if (a.type === 'createCard' && a.data.list?.id === listId) {
+        enteredAt[cid] = new Date(a.date);
+      } else if (a.type === 'updateCard') {
+        if (a.data.listAfter?.id === listId) {
+          enteredAt[cid] = new Date(a.date);
+        } else if (a.data.listBefore?.id === listId && enteredAt[cid]) {
+          const h = (new Date(a.date) - enteredAt[cid]) / 3600000;
+          if (h > 0) durations.push(h);
+          delete enteredAt[cid];
+        }
+      } else if (a.type === 'deleteCard' && enteredAt[cid]) {
+        // Karta usunięta — jeśli ją śledziliśmy na tej liście, liczymy czas
+        const h = (new Date(a.date) - enteredAt[cid]) / 3600000;
+        if (h > 0) durations.push(h);
+        delete enteredAt[cid];
+      }
+    }
+    historicalCount = durations.length;
+    historicalAvg = historicalCount >= 5
+      ? durations.reduce((s,h) => s + h, 0) / durations.length : null;
+  }
+
+  return { listId, listName, isFinal, isWaiting, cards: withTimes, count: current.length, currentAvg, historicalAvg, historicalCount };
+}
+
+function renderStageMetrics() {
+  const grid = document.getElementById('stage-metrics-grid');
+  if (!grid || !state.stageMetrics.length) return;
+
+  grid.innerHTML = state.stageMetrics.map(s => {
+    // Odchylenie od normy
+    const dev = s.currentAvg && s.historicalAvg ? s.currentAvg / s.historicalAvg : null;
+    const devColor = dev === null ? '#6b88a8'
+      : dev <= 1.0 ? '#22c55e'
+      : dev <= 1.5 ? '#f59e0b'
+      : '#ef4444';
+    const devBadge = dev === null ? ''
+      : dev <= 1.0 ? '<span style="color:#22c55e;font-size:11px;font-weight:600;">✓ w normie</span>'
+      : `<span style="color:${devColor};font-size:11px;font-weight:600;">⚠ +${Math.round((dev-1)*100)}%</span>`;
+
+    const barColor = s.count === 0 ? '#263d66'
+      : dev === null ? '#3b82f6' : devColor;
+
+    // Sekcja historyczna
+    let histHtml;
+    if (s.isFinal) {
+      histHtml = '<span style="color:#4a6080;font-size:11px;">oczekuje na archiwizację</span>';
+    } else if (s.isWaiting) {
+      histHtml = '<span style="color:#4a6080;font-size:11px;">norma historyczna niedostępna</span>';
+    } else if (s.historicalAvg !== null) {
+      histHtml = `<span style="color:#6b88a8;font-size:11px;">Norma: <strong style="color:#94a3b8;">${fmtDuration(s.historicalAvg)}</strong> <span style="color:#4a6080;">(${s.historicalCount} kart)</span></span>`;
+    } else {
+      histHtml = `<span style="color:#4a6080;font-size:11px;">norma: za mało danych (${s.historicalCount}/5)</span>`;
+    }
+
+    // Nazwa skrócona dla długich list
+    const shortName = s.listName.length > 35 ? s.listName.slice(0, 33) + '…' : s.listName;
+
+    return `<div style="background:#1a2d52;border-radius:10px;padding:14px 16px;border:1px solid #263d66;border-left:3px solid ${barColor};">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:#6b88a8;margin-bottom:10px;line-height:1.4;" title="${s.listName}">${shortName}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px;">
+        <div>
+          <div style="font-size:30px;font-weight:900;color:${barColor};font-family:monospace;line-height:1;">${s.count}</div>
+          <div style="font-size:10px;color:#6b88a8;margin-top:2px;">kart teraz</div>
+        </div>
+        ${!s.isFinal && s.currentAvg !== null && s.count > 0 ? `
+        <div style="text-align:right;">
+          <div style="font-size:16px;font-weight:700;color:${devColor};font-family:monospace;">${fmtDuration(s.currentAvg)}</div>
+          <div style="font-size:10px;color:#6b88a8;">śr. bieżąco</div>
+        </div>` : ''}
+      </div>
+      <div style="border-top:1px solid rgba(38,61,102,0.4);padding-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        ${histHtml}${devBadge}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
+
+// ── PRZEPUSTOWOŚĆ HISTORYCZNA ──────────────────────────────────────────────
+
+function getMonday(date) {
+  const d=new Date(date), day=d.getDay(), diff=day===0?-6:1-day;
+  d.setDate(d.getDate()+diff); d.setHours(0,0,0,0); return d;
+}
+
+function computeWeeklyThroughput(actions, waitListId) {
+  if (!waitListId) return [];
+  const chron=[...actions].reverse();
+  const entryTimes={}; // cardId -> Date wejścia na pocześkalnię
+  const weeks={};      // weekKey -> {mon, processed:[{hours}], newCards:count}
+
+  function getWk(date) {
+    const mon=getMonday(date);
+    return dateKey(mon);
+  }
+
+  for (const a of chron) {
+    const cid=a.data?.card?.id;
+    if (!cid) continue;
+    const date=new Date(a.date);
+    const wk=getWk(date);
+    if (!weeks[wk]) weeks[wk]={mon:getMonday(date),processed:[],newCards:0};
+
+    if (a.type==='createCard'&&a.data.list?.id===waitListId) {
+      entryTimes[cid]=date;
+      weeks[wk].newCards++;
+    } else if (a.type==='updateCard'&&a.data.listAfter?.id===waitListId) {
+      entryTimes[cid]=date;
+    } else if (
+      (a.type==='deleteCard'&&entryTimes[cid])||
+      (a.type==='updateCard'&&a.data.listBefore?.id===waitListId&&entryTimes[cid])
+    ) {
+      const h=(date-entryTimes[cid])/3600000;
+      if (h>0) weeks[wk].processed.push(h);
+      delete entryTimes[cid];
+    }
+  }
+
+  return Object.entries(weeks)
+    .sort(([a],[b])=>b.localeCompare(a))
+    .map(([key,d])=>({
+      weekKey:key, mon:d.mon,
+      processed:d.processed.length,
+      newCards:d.newCards,
+      balance:d.processed.length-d.newCards,
+      avgHours:d.processed.length>0?d.processed.reduce((s,h)=>s+h,0)/d.processed.length:null
+    }));
+}
+
+function renderWeeklyAnalysis() {
+  const body=document.getElementById('body-throughput');
+  if (!body) return;
+  const data=state.weeklyThroughput;
+  if (!data||data.length===0) {
+    body.innerHTML='<div class="empty-state" style="color:#6b88a8">Brak danych historycznych w pobranym zakresie akcji</div>';
+    return;
+  }
+  const fmtWk=d=>{
+    const sun=new Date(d); sun.setDate(d.getDate()+6);
+    return `${d.getDate().toString().padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}–${sun.getDate().toString().padStart(2,'0')}.${String(sun.getMonth()+1).padStart(2,'0')}`;
+  };
+  const th=s=>`<th style="padding:7px 12px;text-align:${s==='left'?'left':'center'};font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#6b88a8;border-bottom:1px solid #263d66;white-space:nowrap;">`;
+  const td=(val,color,center=true)=>`<td style="padding:8px 12px;${center?'text-align:center;':''}color:${color||'#e2e8f0'};font-size:13px;font-weight:700;border-bottom:1px solid rgba(38,61,102,0.3);">${val}</td>`;
+
+  let h=`<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">`;
+  h+=`<thead><tr>`;
+  h+=th('left')+'Tydzień</th>';
+  h+=th('center')+'Przetworzone</th>';
+  h+=th('center')+'Nowe wpłynęły</th>';
+  h+=th('center')+'Bilans</th>';
+  h+=th('center')+'Śr. czas w pocz.</th>';
+  h+=`</tr></thead><tbody>`;
+
+  data.forEach(w=>{
+    const balColor=w.balance>0?'#22c55e':w.balance<0?'#ef4444':'#6b88a8';
+    const balTxt=(w.balance>0?'+':'')+w.balance;
+    const avgColor=timeColor(w.avgHours);
+    h+=`<tr>`;
+    h+=td(fmtWk(w.mon),null,false);
+    h+=td(w.processed,w.processed>0?'#3b82f6':'#4a6080');
+    h+=td(w.newCards,w.newCards>0?'#6b88a8':'#4a6080');
+    h+=td(balTxt,balColor);
+    h+=td(w.avgHours!==null?fmtDuration(w.avgHours):'—',avgColor);
+    h+=`</tr>`;
+  });
+
+  h+=`</tbody></table></div>`;
+  h+=`<div style="padding:10px 14px;font-size:11px;color:#4a6080;">Bilans = przetworzone – nowe wpłynęły. Wartość dodatnia oznacza nadrabianie zaległości, ujemna — rosnący bufor.</div>`;
+  body.innerHTML=h;
+}
+
+// ── HISTORIA Z SERWERA (history.json) ────────────────────────────────────
+async function loadServerHistory() {
+  try {
+    const r = await fetch('./history.json');
+    if (!r.ok) return;
+    const srv = await r.json();
+    if (!Array.isArray(srv)) return;
+    const seen = new Set();
+    state.history = [...srv, ...state.history]
+      .filter(h => { if (seen.has(h.ts)) return false; seen.add(h.ts); return true; })
+      .sort((a,b) => new Date(b.ts)-new Date(a.ts))
+      .slice(0, 104);
+    renderHistory(); renderCharts();
+  } catch(e) { /* history.json jeszcze nie istnieje — OK */ }
+}
+
+function getTwoWeekDays() {
+  const now=new Date(), day=now.getDay(), diff=day===0?-6:1-day;
+  const mon=new Date(now); mon.setDate(now.getDate()+diff); mon.setHours(0,0,0,0);
+  const days=[];
+  for(let i=0;i<14;i++){const d=new Date(mon);d.setDate(mon.getDate()+i);days.push(d);}
+  return days;
+}
+
+function dateKey(d) {
+  const dt=d instanceof Date?d:new Date(d);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+
+function renderWeekGrid() {
+  const container=document.getElementById('week-grid-container');
+  if(!container||!state.board)return;
+
+  const days=getTwoWeekDays();
+  const todayKey=dateKey(new Date());
+  const DN=['Nd','Pn','Wt','Śr','Cz','Pt','Sb'];
+
+  // Zbuduj siatkę
+  const grid={};
+  days.forEach(d=>{grid[dateKey(d)]={todo:[],sent:[],accepted:[]};});
+  state.twoWeekCards.forEach(c=>{
+    if(!c.due)return;
+    const k=dateKey(new Date(c.due));
+    if(!grid[k])return;
+    if(c.idList===state.waitListId) grid[k].todo.push(c);
+    else if(state.wniosekListIds.includes(c.idList)) grid[k].sent.push(c);
+    else if(state.acceptedListIds.includes(c.idList)) grid[k].accepted.push(c);
+  });
+  window._wg={grid,days}; // dla click handlera
+
+  const cats=[
+    {key:'todo', label:'Do wprowadzenia',       color:'#f59e0b', bg:'rgba(245,158,11,0.14)'},
+    {key:'sent', label:'W opracowaniu / Wysłany',  color:'#3b82f6', bg:'rgba(59,130,246,0.14)'},
+    {key:'accepted', label:'Czeka / Zakl. / Zrealiz.', color:'#22c55e', bg:'rgba(34,197,94,0.14)'},
+  ];
+
+  const tdBase='padding:7px 5px;text-align:center;border-top:1px solid rgba(38,61,102,0.35);';
+  const thBase='padding:6px 5px;text-align:center;font-size:10px;font-weight:700;white-space:nowrap;';
+
+  let h=`<table style="border-collapse:collapse;width:100%;font-size:12px;">`;
+
+  // Nagłówek — tydzień
+  h+=`<tr><td style="padding:6px 10px;"></td>`;
+  h+=`<td colspan="7" style="${thBase}color:#6b88a8;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #1a2d52;padding-bottom:4px;">Bieżący tydzień</td>`;
+  h+=`<td colspan="7" style="${thBase}color:#6b88a8;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid #1a2d52;border-left:2px solid #263d66;padding-bottom:4px;">Następny tydzień</td>`;
+  h+=`</tr>`;
+
+  // Nagłówek — dni
+  h+=`<tr><td style="padding:6px 10px;color:#6b88a8;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Etap</td>`;
+  days.forEach((d,i)=>{
+    const k=dateKey(d), isT=k===todayKey, isW=d.getDay()===0||d.getDay()===6;
+    const bg=isT?'rgba(59,130,246,0.18)':isW?'rgba(0,0,0,0.18)':'transparent';
+    const col=isT?'#93c5fd':isW?'#4a6480':'#6b88a8';
+    const bl=i===7?'border-left:2px solid #263d66;':'';
+    h+=`<td style="${thBase}background:${bg};${bl}color:${col};">`;
+    h+=`${DN[d.getDay()]}<br>${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')}`;
+    h+=isT?`<br><span style="color:#3b82f6;font-size:8px;">dziś</span>`:'';
+    h+=`</td>`;
+  });
+  h+=`</tr>`;
+
+  // Wiersze kategorii
+  cats.forEach(cat=>{
+    h+=`<tr><td style="padding:8px 10px;color:${cat.color};font-size:11px;font-weight:600;border-top:1px solid rgba(38,61,102,0.35);white-space:nowrap;">${cat.label}</td>`;
+    days.forEach((d,i)=>{
+      const k=dateKey(d), cards=grid[k][cat.key], n=cards.length;
+      const isT=k===todayKey, isW=d.getDay()===0||d.getDay()===6;
+      const bg=n>0?cat.bg:(isT?'rgba(59,130,246,0.04)':isW?'rgba(0,0,0,0.1)':'transparent');
+      const bl=i===7?'border-left:2px solid #263d66;':'';
+      const click=n>0?`onclick="showGridDetail('${k}','${cat.key}','${cat.label}')" style="cursor:pointer;"`:'';
+      h+=`<td ${click} style="${tdBase}background:${bg};${bl}color:${n>0?cat.color:'#2a3f58'};font-weight:${n>0?'800':'400'};font-size:${n>0?'15px':'11px'};">`;
+      h+=n>0?n:'–';
+      h+=`</td>`;
+    });
+    h+=`</tr>`;
+  });
+
+  // Wiersz łączny
+  h+=`<tr><td style="padding:8px 10px;color:#e2e8f0;font-size:11px;font-weight:700;border-top:2px solid #3b4d6a;letter-spacing:0.5px;text-transform:uppercase;">Łącznie</td>`;
+  days.forEach((d,i)=>{
+    const k=dateKey(d);
+    const total=grid[k].todo.length+grid[k].sent.length+grid[k].accepted.length;
+    const isT=k===todayKey, isW=d.getDay()===0||d.getDay()===6;
+    const bg=isT?'rgba(59,130,246,0.1)':isW?'rgba(0,0,0,0.15)':'transparent';
+    const bl=i===7?'border-left:2px solid #263d66;':'';
+    const click=total>0?`onclick="showGridDetail('${k}','all','Łącznie')" style="cursor:pointer;"`:'';
+    h+=`<td ${click} style="padding:8px 5px;text-align:center;background:${bg};${bl}border-top:2px solid #3b4d6a;color:${total>0?'#e2e8f0':'#2a3f58'};font-weight:800;font-size:${total>0?'16px':'11px'};">`;
+    h+=total>0?total:'–';
+    h+=`</td>`;
+  });
+  h+=`</tr></table>`;
+
+  // Legenda/ostrzeżenia
+  const warns=[];
+  if(state.wniosekListIds.length===0) warns.push('"Wniosek wysłany" — nie znaleziono listy');
+  if(state.acceptedListIds.length===0) warns.push('"Czeka / Zaakceptowane / Zrealizowane" — nie znaleziono list');
+  if(warns.length>0) h+=`<div style="color:#f59e0b;font-size:11px;margin-top:10px;padding:0 2px;">⚠ ${warns.join(' · ')}</div>`;
+
+  // Legenda dopasowań (zawsze widoczna — pomaga zidentyfikować błędy)
+  const mW=state.wniosekListIds.map(id=>state.lists.find(l=>l.id===id)?.name).filter(Boolean);
+  const mA=state.acceptedListIds.map(id=>state.lists.find(l=>l.id===id)?.name).filter(Boolean);
+  const mT=state.waitListId?[state.lists.find(l=>l.id===state.waitListId)?.name].filter(Boolean):[];
+  h+=`<div style="margin-top:10px;font-size:10px;color:#4a6080;line-height:1.8;border-top:1px solid rgba(38,61,102,0.3);padding-top:8px;">`;
+  h+=`🟡 Do wprowadzenia: <span style="color:#5a7090;">${mT.join(', ')||'—'}</span> &nbsp;·&nbsp; `;
+  h+=`🔵 W opracowaniu / Wysłany: <span style="color:${mW.length?'#5a7090':'#f59e0b'}">${mW.join(', ')||'⚠ nie dopasowano'}</span> &nbsp;·&nbsp; `;
+  h+=`🟢 Czeka/Zakl./Zrealiz.: <span style="color:${mA.length?'#5a7090':'#f59e0b'}">${mA.join(', ')||'⚠ nie dopasowano'}</span>`;
+  h+=`</div>`;
+
+  container.innerHTML=h;
+}
+
+function showGridDetail(k,catKey,catLabel) {
+  const {grid}=window._wg||{};
+  if(!grid||!grid[k])return;
+  const cards=catKey==='all'?[...grid[k].todo,...grid[k].sent,...grid[k].accepted]:grid[k][catKey];
+  const [y,m,d]=k.split('-');
+  const catColors={todo:'#f59e0b',sent:'#3b82f6',accepted:'#22c55e',all:'#e2e8f0'};
+  const color=catColors[catKey]||'#e2e8f0';
+  document.getElementById('grid-detail-title').innerHTML=
+    `<span style="color:${color}">${catLabel}</span> · ${d}.${m}.${y} · <span style="color:#6b88a8;">${cards.length} ${cards.length===1?'wadium':'wadiów'}</span>`;
+  document.getElementById('grid-detail-list').innerHTML=cards.length===0
+    ?'<div style="color:#6b88a8;font-size:13px;">Brak kart</div>'
+    :cards.map(c=>{
+        const done=c.dueComplete?'<span style="color:#22c55e;margin-left:6px;font-size:11px;">✓ zakończone</span>':'';
+        const listName=state.lists.find(l=>l.id===c.idList)?.name||'';
+        const catDot=c.idList===state.waitListId?'🟡':state.wniosekListIds.includes(c.idList)?'🔵':'🟢';
+        return`<div style="padding:7px 0;border-bottom:1px solid rgba(38,61,102,0.3);display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <span style="color:#e2e8f0;font-size:13px;">${catDot} ${c.name}${done}</span>
+          <span style="color:#6b88a8;font-size:11px;flex-shrink:0;">${listName}</span>
+        </div>`;
+      }).join('');
+  document.getElementById('grid-detail').style.display='block';
+}
+
+
+
+</script>
+</body>
+</html>
