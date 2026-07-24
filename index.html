@@ -533,14 +533,19 @@ async function doRefresh() {
   btn.disabled=true; btn.textContent='↻ Ładowanie...';
   showError('dash-error','');
   try {
-    const [wr,ar,acr,mr,waitCrR,delR,mvR]=await Promise.all([
+    // Granice tygodnia muszą być znane przed fetch-em (używamy since=)
+    const {mon,sun}=getWeekBounds();
+
+    const [wr,ar,acr,mr,waitCrR,delR,mvR,newCrR]=await Promise.all([
       fetch(trelloUrl(`/lists/${state.waitListId}/cards`,{fields:'name,due,dateLastActivity'})),
       fetch(trelloUrl(`/boards/${state.board.id}/cards`,{filter:'open',fields:'name,due,idList,dueComplete,idMembers'})),
       fetch(trelloUrl(`/boards/${state.board.id}/actions`,{filter:'createCard,updateCard:idList,deleteCard',limit:'1000',fields:'data,date,type'})),
       fetch(trelloUrl(`/boards/${state.board.id}/members`,{fields:'fullName,id'})),
       fetch(trelloUrl(`/boards/${state.board.id}/actions`,{filter:'createCard',limit:'1000',fields:'data,date,type'})),
       fetch(trelloUrl(`/boards/${state.board.id}/actions`,{filter:'deleteCard',limit:'1000',fields:'data,date,type'})),
-      fetch(trelloUrl(`/boards/${state.board.id}/actions`,{filter:'updateCard:idList',limit:'1000',fields:'data,date,type'}))
+      fetch(trelloUrl(`/boards/${state.board.id}/actions`,{filter:'updateCard:idList',limit:'1000',fields:'data,date,type'})),
+      // Dedykowany fetch: TYLKO createCard od poniedziałku — parametr since eliminuje problem limitu 1000
+      fetch(trelloUrl(`/boards/${state.board.id}/actions`,{filter:'createCard',since:mon.toISOString(),limit:'1000',fields:'data,date,type'}))
     ]);
     if (!wr.ok||!ar.ok) throw new Error('Błąd Trello API — sprawdź klucz i token');
     const [wc,ac]=await Promise.all([wr.json(),ar.json()]);
@@ -551,6 +556,20 @@ async function doRefresh() {
     const mvActions     = mvR.ok     ? await mvR.json()     : [];
     let actions=acr.ok?await acr.json():[];
     if (!Array.isArray(actions)) actions=[];
+    // Nowe w tym tygodniu = karty ręczne (poczekalnia) + karty API (proxy za przetworzone)
+    // Karty z poczekalni kasowane po przetworzeniu → ich createCard znika z historii Trello
+    // Karty API na listach roboczych = dowód że odpowiadająca karta ręczna istniała
+    const newCrActions = newCrR.ok ? await newCrR.json() : [];
+    const _allCrThisWeek = Array.isArray(newCrActions) ? newCrActions : [];
+    const _crOnWait   = _allCrThisWeek.filter(a => a.type==='createCard' && a.data?.list?.id===state.waitListId);
+    // wniosekListIds obliczamy lokalnie — state.wniosekListIds jest uzupełniane później w doRefresh
+    const _lN=l=>l.name.toLowerCase();
+    const _wniosekListIds=state.lists.filter(l=>{
+      const n=_lN(l);
+      return (n.includes('wnios')&&!n.includes('zaakceptowane')&&!n.includes('podpisany'))||n.includes('po analizie');
+    }).map(l=>l.id);
+    const _crApiProxy = _allCrThisWeek.filter(a => a.type==='createCard' && _wniosekListIds.includes(a.data?.list?.id));
+    state.newThisWeek = [..._crOnWait, ..._crApiProxy];
     // Scalamy i deduplikujemy — każdy typ ma własne 1000 zdarzeń
     const seenIds=new Set();
     const poczekalniaActions=[
@@ -610,13 +629,7 @@ async function doRefresh() {
     state.avgWaitHours=wt.length>0?wt.reduce((s,c)=>s+c.hours,0)/wt.length:null;
     state.top5=[...state.waitCardsWithTimes].filter(c=>c.hours!==null).sort((a,b)=>b.hours-a.hours).slice(0,5);
     state.maxWaitCard=state.top5[0]||null;
-    const {mon,sun}=getWeekBounds();
-    // Nowe karty w tym tygodniu — z poczekalniaActions (własny limit 1000 na createCard)
-    state.newThisWeek=poczekalniaActions.filter(a=>{
-      if (a.type!=='createCard') return false;
-      if (a.data?.list?.id!==state.waitListId) return false;
-      const d=new Date(a.date); return d>=mon&&d<=sun;
-    });
+    const {mon:_m,sun:_s}=getWeekBounds(); // używamy mon/sun z góry funkcji
 
     // Wyprzedzenie: data przetargu minus data wpłynięcia wniosku
     const cardDueMap={};
