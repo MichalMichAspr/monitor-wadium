@@ -611,7 +611,8 @@ async function doRefresh() {
     state.top5=[...state.waitCardsWithTimes].filter(c=>c.hours!==null).sort((a,b)=>b.hours-a.hours).slice(0,5);
     state.maxWaitCard=state.top5[0]||null;
     const {mon,sun}=getWeekBounds();
-    state.newThisWeek=actions.filter(a=>{
+    // Nowe karty w tym tygodniu — z poczekalniaActions (własny limit 1000 na createCard)
+    state.newThisWeek=poczekalniaActions.filter(a=>{
       if (a.type!=='createCard') return false;
       if (a.data?.list?.id!==state.waitListId) return false;
       const d=new Date(a.date); return d>=mon&&d<=sun;

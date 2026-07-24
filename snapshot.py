@@ -57,19 +57,25 @@ def main():
     ]
     print(f"Ten tydzień: {len(week_cards)} wadiów z TERMINEM")
 
-    # 4. Akcje tablicy — dla nowych kart i czasu oczekiwania
+    # 4. Akcje tablicy — dedykowany fetch createCard (własny limit 1000)
+    create_actions = trello_get(f'/boards/{BOARD_ID}/actions', {
+        'filter': 'createCard',
+        'limit':  '1000',
+        'fields': 'data,date,type'
+    })
+
+    # Akcje tablicy — createCard + updateCard:idList dla czasu oczekiwania
     actions = trello_get(f'/boards/{BOARD_ID}/actions', {
         'filter': 'createCard,updateCard:idList',
         'limit':  '1000',
         'fields': 'data,date,type'
     })
 
-    # Nowe karty w tym tygodniu (tylko te które pojawiły się na poczekalni)
-    new_this_week = [
-        a for a in actions
-        if a['type'] == 'createCard'
-        and a.get('data', {}).get('list', {}).get('id') == WAIT_LIST_ID
-        and mon.isoformat() <= a['date'] <= sun.isoformat()
+    # Wadia z terminem w bieżącym tygodniu — BEZ filtra dueComplete (jak w JS)
+    week_cards = [
+        c for c in all_cards
+        if c.get('due')
+        and mon.isoformat() <= c['due'] <= sun.isoformat()
     ]
     print(f"Nowe w tym tygodniu: {len(new_this_week)}")
 
