@@ -18,11 +18,10 @@ AUTH = {'key': TRELLO_KEY, 'token': TRELLO_TOKEN}
 
 
 def get_week_bounds():
-    """Zwraca poniedziałek 00:00 i niedzielę 23:59 bieżącego tygodnia (UTC)."""
     now  = datetime.now(timezone.utc)
     diff = now.weekday()  # 0 = poniedziałek
     mon  = (now - timedelta(days=diff)).replace(hour=0,  minute=0,  second=0,  microsecond=0)
-    sun  = (now - timedelta(days=diff)).replace(hour=23, minute=59, second=59, microsecond=0) + timedelta(days=6)
+    sun  = mon + timedelta(days=6, hours=23, minutes=59, seconds=59)
     return mon, sun
 
 
@@ -49,34 +48,48 @@ def main():
         'filter': 'open', 'fields': 'id,name,due,idList,dueComplete'
     })
 
-    # 3. Wadia z terminem w bieżącym tygodniu
+    # 3. Wadia z terminem w bieżącym tygodniu — bez filtra dueComplete (jak w JS)
     week_cards = [
         c for c in all_cards
-        if c.get('due') and not c.get('dueComplete')
+        if c.get('due')
         and mon.isoformat() <= c['due'] <= sun.isoformat()
     ]
     print(f"Ten tydzień: {len(week_cards)} wadiów z TERMINEM")
 
-    # 4. Akcje tablicy — dedykowany fetch createCard (własny limit 1000)
+    # 4. Akcje createCard od poniedziałku — parametr since eliminuje problem limitu 1000
     create_actions = trello_get(f'/boards/{BOARD_ID}/actions', {
         'filter': 'createCard',
+        'since':  mon.isoformat(),
         'limit':  '1000',
         'fields': 'data,date,type'
     })
 
-    # Akcje tablicy — createCard + updateCard:idList dla czasu oczekiwania
+    # 5. Akcje mieszane — dla czasu oczekiwania w poczekalni
     actions = trello_get(f'/boards/{BOARD_ID}/actions', {
         'filter': 'createCard,updateCard:idList',
         'limit':  '1000',
         'fields': 'data,date,type'
     })
 
-    # Wadia z terminem w bieżącym tygodniu — BEZ filtra dueComplete (jak w JS)
-    week_cards = [
-        c for c in all_cards
-        if c.get('due')
-        and mon.isoformat() <= c['due'] <= sun.isoformat()
+    # 6. Listy tablicy — żeby znaleźć ID list roboczych (karty API)
+    board_lists = trello_get(f'/boards/{BOARD_ID}/lists', {
+        'filter': 'open', 'fields': 'id,name'
+    })
+    wniosek_list_ids = [
+        l['id'] for l in board_lists
+        if ('wnios' in l['name'].lower() or 'po analizie' in l['name'].lower())
+        and 'zaakceptowane' not in l['name'].lower()
+        and 'podpisany' not in l['name'].lower()
     ]
+
+    # Nowe w tym tygodniu = karty ręczne na poczekalni + karty API (proxy)
+    # Karty ręczne z poczekalni są kasowane → ich createCard znika z historii Trello
+    # Karty API tworzone przez generator = dowód że istniała odpowiadająca karta ręczna
+    cr_on_wait  = [a for a in create_actions
+                   if a.get('data', {}).get('list', {}).get('id') == WAIT_LIST_ID]
+    cr_api_proxy = [a for a in create_actions
+                    if a.get('data', {}).get('list', {}).get('id') in wniosek_list_ids]
+    new_this_week = cr_on_wait + cr_api_proxy
     print(f"Nowe w tym tygodniu: {len(new_this_week)}")
 
     # Średni czas oczekiwania bieżących kart w poczekalni
@@ -112,7 +125,7 @@ def main():
                 lead_days.append(days)
     avg_lead = sum(lead_days) / len(lead_days) if lead_days else None
 
-    # Buduj snapshot (ten sam format co localStorage w HTML)
+    # Buduj snapshot
     snapshot = {
         'ts':          now.isoformat(),
         'waiting':     len(wait_cards),
@@ -132,9 +145,8 @@ def main():
     except (FileNotFoundError, json.JSONDecodeError):
         history = []
 
-    # Dopisz nowy snapshot (najnowszy na początku, jak w localStorage)
     history = [snapshot] + history
-    history = history[:104]   # przechowuj max 2 lata tygodniowych snapshotów
+    history = history[:104]
 
     with open(history_path, 'w', encoding='utf-8') as f:
         json.dump(history, f, indent=2, ensure_ascii=False)
