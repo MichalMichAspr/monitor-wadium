@@ -1,5 +1,13 @@
 [
   {
+    "ts": "2026-10-16T18:33:28.897127+00:00",
+    "waiting": 0,
+    "thisWeek": 27,
+    "avgHours": null,
+    "newThisWeek": 32,
+    "avgLeadDays": 9.25460902307581
+  },
+  {
     "ts": "2026-10-09T19:57:42.543910+00:00",
     "waiting": 6,
     "thisWeek": 30,
